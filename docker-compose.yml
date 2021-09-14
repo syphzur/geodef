@@ -1,0 +1,60 @@
+version: "3.7"
+
+services:
+  postgis:
+    image: kartoza/postgis:13.0
+    environment:
+      - POSTGRES_DBNAME=gpsdb
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASS=root
+      - POSTGRES_MULTIPLE_EXTENSIONS=postgis,hstore,postgis_topology,postgis_raster,pgrouting
+    restart: unless-stopped
+    ports:
+      - 5432:5432
+    volumes:
+      - /var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: root@root.com
+      PGADMIN_DEFAULT_PASSWORD: root
+    restart: unless-stopped
+    depends_on:
+      - postgis
+    ports:
+      - 15432:80
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - 8080:8080
+    depends_on:
+      - postgis
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgis:5432/gpsdb
+
+
+  tcp_server:
+    build:
+      context: ./
+      dockerfile: ./tcp_server/Dockerfile
+    ports:
+      - 5000:5000
+    depends_on:
+      - backend
+    restart: unless-stopped
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgis:5432/gpsdb
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - 80:80
+    restart: unless-stopped
+
